@@ -115,24 +115,6 @@ For detailed migration instructions from the original FlashAttention, see [MIGRA
 
 For more information about the FlagGems integration, see [README_FLAGGEMS.md](README_FLAGGEMS.md).
 
-## Citation
-
-If you use FlashAttention-Plus in your research, please cite both this project and the original FlashAttention:
-
-```bibtex
-@misc{flashattentionplus2024,
-  author = {Wu, Zhongheng},
-  title = {FlashAttention-Plus: Hardware-agnostic FlashAttention using FlagGems/Triton},
-  year = {2024},
-  publisher = {GitHub},
-  url = {https://github.com/VocabVictor/flash-attention-plus}
-}
-```
-
-Original FlashAttention papers:
-- [FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness](https://arxiv.org/abs/2205.14135)
-- [FlashAttention-2: Faster Attention with Better Parallelism and Work Partitioning](https://tridao.me/publications/flash2/flash2.pdf)
-
 ## License
 
 This project maintains the same BSD 3-Clause License as the original FlashAttention. See [LICENSE](LICENSE) for details.
@@ -142,15 +124,6 @@ This project maintains the same BSD 3-Clause License as the original FlashAttent
 - Original FlashAttention by [Tri Dao](https://tridao.me/) and team
 - [FlagGems](https://github.com/FlagOpen/FlagGems) team for the Triton kernels
 - [OpenAI Triton](https://github.com/openai/triton) for the GPU programming language
-
-## Author
-
-**Zhongheng Wu**  
-Nanjing University
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## Roadmap
 
