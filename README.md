@@ -3,6 +3,9 @@
 **A hardware-agnostic implementation of FlashAttention using FlagGems/Triton backend**
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://vocabvictor.github.io/flash-attention-plus/)
+
+[📖 Documentation](https://vocabvictor.github.io/flash-attention-plus/) | [中文文档](https://vocabvictor.github.io/flash-attention-plus/zh/)
 
 ## Overview
 
