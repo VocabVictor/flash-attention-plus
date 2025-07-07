@@ -1,98 +1,98 @@
-# Migration Guide
+# 迁移指南
 
-This guide helps you migrate from the original FlashAttention to FlashAttention-Plus.
+本指南帮助您从原始 FlashAttention 迁移到 FlashAttention-Plus。
 
-## Quick Migration
+## 快速迁移
 
-The migration process is straightforward since FlashAttention-Plus maintains API compatibility:
+由于 FlashAttention-Plus 保持 API 兼容性，迁移过程非常简单：
 
-### Step 1: Install FlashAttention-Plus
+### 步骤 1：安装 FlashAttention-Plus
 
-Follow the [Installation Guide](installation.md) to install FlashAttention-Plus and its dependencies.
+按照[安装指南](installation.md)安装 FlashAttention-Plus 及其依赖项。
 
-### Step 2: Enable FlagGems Backend
+### 步骤 2：启用 FlagGems 后端
 
-Add this line before importing flash_attn:
+在导入 flash_attn 之前添加这一行：
 
 ```python
 import os
 os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"
 ```
 
-### Step 3: No Code Changes Required
+### 步骤 3：无需修改代码
 
-Your existing code should work without modifications:
+您现有的代码无需修改即可工作：
 
 ```python
-# Original code - no changes needed!
+# 原始代码 - 无需更改！
 from flash_attn import flash_attn_func
 
 output = flash_attn_func(q, k, v, causal=True)
 ```
 
-## Detailed Migration
+## 详细迁移
 
-### For Training Scripts
+### 训练脚本
 
 ```python
-# Before: Original FlashAttention
+# 之前：原始 FlashAttention
 import torch
 from flash_attn import flash_attn_func
 
-# After: FlashAttention-Plus
+# 之后：FlashAttention-Plus
 import os
-os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"  # Add this line
+os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"  # 添加这一行
 
 import torch
-from flash_attn import flash_attn_func  # Same import
+from flash_attn import flash_attn_func  # 相同的导入
 ```
 
-### For Model Definitions
+### 模型定义
 
-If you have custom attention modules:
+如果您有自定义注意力模块：
 
 ```python
-# The module definition remains the same
+# 模块定义保持不变
 class MyFlashAttention(nn.Module):
     def __init__(self, dim, num_heads):
         super().__init__()
-        # No changes needed
+        # 无需更改
         
     def forward(self, x):
-        # flash_attn_func works the same way
+        # flash_attn_func 工作方式相同
         return flash_attn_func(q, k, v, causal=self.causal)
 ```
 
-## Feature Compatibility
+## 功能兼容性
 
-| Feature | Original FlashAttention | FlashAttention-Plus |
+| 功能 | 原始 FlashAttention | FlashAttention-Plus |
 |---------|------------------------|--------------------|
-| Forward Pass | ✅ | ✅ |
-| Backward Pass | ✅ | ❌ (Coming soon) |
-| Causal Masking | ✅ | ✅ |
-| Dropout | ✅ | ⚠️ (Limited) |
-| Custom Softmax Scale | ✅ | ✅ |
-| FP16/BF16 Support | ✅ | ✅ |
-| Variable Length | ✅ | ❌ (Coming soon) |
-| KV Cache | ✅ | ❌ (Coming soon) |
+| 前向传播 | ✅ | ✅ |
+| 反向传播 | ✅ | ❌ (即将推出) |
+| 因果掩码 | ✅ | ✅ |
+| Dropout | ✅ | ⚠️ (有限支持) |
+| 自定义 Softmax 缩放 | ✅ | ✅ |
+| FP16/BF16 支持 | ✅ | ✅ |
+| 可变长度 | ✅ | ❌ (即将推出) |
+| KV 缓存 | ✅ | ❌ (即将推出) |
 
-## Common Migration Scenarios
+## 常见迁移场景
 
-### Scenario 1: Research Projects
+### 场景 1：研究项目
 
-For research projects using FlashAttention:
+对于使用 FlashAttention 的研究项目：
 
-1. Install FlashAttention-Plus alongside your existing setup
-2. Set the environment variable at the beginning of your script
-3. Run your experiments as usual
+1. 在现有设置旁边安装 FlashAttention-Plus
+2. 在脚本开头设置环境变量
+3. 像往常一样运行实验
 
-### Scenario 2: Production Systems
+### 场景 2：生产系统
 
-For production deployments:
+对于生产部署：
 
-1. Test thoroughly with your specific workloads
-2. Monitor performance metrics
-3. Keep the ability to switch back:
+1. 使用您的特定工作负载进行彻底测试
+2. 监控性能指标
+3. 保持切换回的能力：
 
 ```python
 USE_FLAGGEMS = os.getenv("USE_FLAGGEMS", "true").lower() == "true"
@@ -103,40 +103,40 @@ else:
     os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "FALSE"
 ```
 
-### Scenario 3: Multi-GPU Training
+### 场景 3：多 GPU 训练
 
-FlashAttention-Plus works with distributed training:
+FlashAttention-Plus 适用于分布式训练：
 
 ```python
-# Works with DDP, FSDP, etc.
+# 适用于 DDP、FSDP 等
 model = YourModel()
 model = DDP(model)
 
-# FlashAttention-Plus will work across all GPUs
+# FlashAttention-Plus 将在所有 GPU 上工作
 ```
 
-## Troubleshooting Migration Issues
+## 故障排除迁移问题
 
-### Issue: Performance Regression
+### 问题：性能回退
 
-**Solution**: First run may be slower due to Triton compilation. Run a warmup:
+**解决方案**：由于 Triton 编译，首次运行可能较慢。运行预热：
 
 ```python
-# Warmup run
+# 预热运行
 for _ in range(3):
     _ = flash_attn_func(q[:1], k[:1], v[:1])
 
-# Actual computation
+# 实际计算
 output = flash_attn_func(q, k, v)
 ```
 
-### Issue: Backward Pass Not Working
+### 问题：反向传播不工作
 
-**Current Limitation**: Backward pass is not yet implemented. For training, you may need to keep using the original FlashAttention for now.
+**当前限制**：反向传播尚未实现。对于训练，您可能需要暂时继续使用原始 FlashAttention。
 
-### Issue: Import Errors
+### 问题：导入错误
 
-**Solution**: Ensure all dependencies are properly installed:
+**解决方案**：确保所有依赖项都已正确安装：
 
 ```bash
 pip install --upgrade triton
@@ -144,23 +144,23 @@ pip install -e /path/to/FlagGems
 pip install -e /path/to/flash-attention-plus
 ```
 
-## Rollback Plan
+## 回滚计划
 
-If you need to rollback to the original FlashAttention:
+如果您需要回滚到原始 FlashAttention：
 
 ```python
-# Simply set the environment variable to FALSE
+# 只需将环境变量设置为 FALSE
 os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "FALSE"
 ```
 
-Or uninstall FlashAttention-Plus:
+或卸载 FlashAttention-Plus：
 
 ```bash
 pip uninstall flash-attn-plus
 ```
 
-## Next Steps
+## 下一步
 
-- Check [Examples](examples.md) for working code samples
-- Read [Technical Details](technical.md) for implementation details
-- Report issues on [GitHub](https://github.com/VocabVictor/flash-attention-plus/issues)
+- 查看[示例](examples.md)获取工作代码示例
+- 阅读[技术细节](technical.md)了解实现细节
+- 在 [GitHub](https://github.com/VocabVictor/flash-attention-plus/issues) 上报告问题

@@ -1,122 +1,122 @@
-# Installation Guide
+# 安装指南
 
-This guide will help you install FlashAttention-Plus and its dependencies.
+本指南将帮助您安装 FlashAttention-Plus 及其依赖项。
 
-## Prerequisites
+## 前置要求
 
-Before installing FlashAttention-Plus, ensure you have:
+在安装 FlashAttention-Plus 之前，请确保您拥有：
 
-- Python 3.8 or higher
-- PyTorch 2.0 or higher with CUDA support
-- CUDA 11.6 or higher (for GPU support)
+- Python 3.8 或更高版本
+- PyTorch 2.0 或更高版本（带 CUDA 支持）
+- CUDA 11.6 或更高版本（用于 GPU 支持）
 
-## Step 1: Install Core Dependencies
+## 步骤 1：安装核心依赖
 
 ```bash
-# PyTorch with CUDA support
+# 安装带 CUDA 支持的 PyTorch
 pip install torch>=2.0.0
 
-# Triton (required for FlagGems)
+# 安装 Triton（FlagGems 所需）
 pip install triton>=3.0.0
 
-# Other dependencies
+# 其他依赖
 pip install einops
 ```
 
-!!! note "Triton Version"
-    FlagGems requires Triton 3.0 or higher. If you have PyTorch pre-installed with an older Triton version, you may need to upgrade:
+!!! note "Triton 版本"
+    FlagGems 需要 Triton 3.0 或更高版本。如果您预装的 PyTorch 带有较旧的 Triton 版本，可能需要升级：
     ```bash
     pip install --upgrade triton
     ```
 
-## Step 2: Install FlagGems
+## 步骤 2：安装 FlagGems
 
-FlagGems provides the Triton-based Flash Attention implementation:
+FlagGems 提供基于 Triton 的 Flash Attention 实现：
 
 ```bash
-# Clone FlagGems repository
+# 克隆 FlagGems 仓库
 git clone https://github.com/FlagOpen/FlagGems.git
 cd FlagGems
 
-# Install in development mode
+# 以开发模式安装
 pip install -e .
 ```
 
-## Step 3: Install FlashAttention-Plus
+## 步骤 3：安装 FlashAttention-Plus
 
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone https://github.com/VocabVictor/flash-attention-plus.git
 cd flash-attention-plus
 
-# Install in development mode
+# 以开发模式安装
 pip install -e .
 ```
 
-## Verify Installation
+## 验证安装
 
-To verify that FlashAttention-Plus is installed correctly:
+验证 FlashAttention-Plus 是否正确安装：
 
 ```python
 import torch
 from flash_attn import flash_attn_func
 
-# Check if import works
-print("FlashAttention-Plus imported successfully!")
+# 检查导入是否成功
+print("FlashAttention-Plus 导入成功！")
 
-# Test with a simple example
+# 简单测试
 q = torch.randn(1, 64, 8, 32, device='cuda', dtype=torch.float16)
 k = torch.randn(1, 64, 8, 32, device='cuda', dtype=torch.float16)
 v = torch.randn(1, 64, 8, 32, device='cuda', dtype=torch.float16)
 
 output = flash_attn_func(q, k, v)
-print(f"Test passed! Output shape: {output.shape}")
+print(f"测试通过！输出形状：{output.shape}")
 ```
 
-## Troubleshooting
+## 故障排除
 
-### Common Issues
+### 常见问题
 
-#### 1. NumPy Version Conflict
+#### 1. NumPy 版本冲突
 
-If you encounter NumPy version issues:
+如果遇到 NumPy 版本问题：
 ```bash
 pip install numpy==1.26.4
 ```
 
-#### 2. Triton Import Errors
+#### 2. Triton 导入错误
 
-If you see errors related to Triton imports:
+如果看到与 Triton 导入相关的错误：
 ```bash
-# Upgrade Triton to the latest version
+# 将 Triton 升级到最新版本
 pip install --upgrade triton
 ```
 
-#### 3. CUDA Not Available
+#### 3. CUDA 不可用
 
-Ensure PyTorch is installed with CUDA support:
+确保 PyTorch 安装了 CUDA 支持：
 ```python
 import torch
-print(torch.cuda.is_available())  # Should return True
+print(torch.cuda.is_available())  # 应返回 True
 ```
 
-### Environment Setup
+### 环境设置
 
-For a clean installation, we recommend using a conda environment:
+为了获得干净的安装，我们建议使用 conda 环境：
 
 ```bash
-# Create a new environment
+# 创建新环境
 conda create -n flash-attn-plus python=3.10
 conda activate flash-attn-plus
 
-# Install PyTorch with CUDA support
+# 安装带 CUDA 支持的 PyTorch
 conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
 
-# Continue with the installation steps above
+# 继续上述安装步骤
 ```
 
-## Next Steps
+## 下一步
 
-- Check out the [Usage Guide](usage.md) to learn how to use FlashAttention-Plus
-- See [Examples](examples.md) for practical code samples
-- Read the [Migration Guide](migration.md) if you're coming from the original FlashAttention
+- 查看[使用指南](usage.md)了解如何使用 FlashAttention-Plus
+- 查看[示例](examples.md)获取实际代码样例
+- 如果您是从原始 FlashAttention 迁移，请阅读[迁移指南](migration.md)

@@ -8,37 +8,39 @@ import os
 
 # isort: off
 # We need to import the backend after importing torch
-USE_FLAGGEMS = os.getenv("FLASH_ATTENTION_USE_FLAGGEMS", "TRUE") == "TRUE"
-USE_TRITON_ROCM = os.getenv("FLASH_ATTENTION_TRITON_AMD_ENABLE", "FALSE") == "TRUE"
+# Direct FlagGems backend usage - removed conditional logic
+# USE_FLAGGEMS = os.getenv("FLASH_ATTENTION_USE_FLAGGEMS", "TRUE") == "TRUE"
+# USE_TRITON_ROCM = os.getenv("FLASH_ATTENTION_TRITON_AMD_ENABLE", "FALSE") == "TRUE"
 
-if USE_FLAGGEMS:
-    # Use FlagGems Triton backend
-    from .flash_attn_flaggems_backend import (
-        _flaggems_flash_attn_forward,
-        _flash_attn_backward,
-        _flash_attn_varlen_forward,
-        _flash_attn_varlen_backward,
-        _flash_attn_qkvpacked_forward,
-        _flash_attn_kvpacked_forward,
-        _flash_attn_with_kvcache,
-    )
-elif USE_TRITON_ROCM:
-    from .flash_attn_triton_amd import interface_fa as flash_attn_gpu
-else:
-    try:
-        import flash_attn_2_cuda as flash_attn_gpu
-    except ImportError:
-        print("Warning: CUDA backend not available, using FlagGems backend")
-        USE_FLAGGEMS = True
-        from .flash_attn_flaggems_backend import (
-            _flaggems_flash_attn_forward,
-            _flash_attn_backward,
-            _flash_attn_varlen_forward,
-            _flash_attn_varlen_backward,
-            _flash_attn_qkvpacked_forward,
-            _flash_attn_kvpacked_forward,
-            _flash_attn_with_kvcache,
-        )
+# Always use FlagGems Triton backend
+from .flash_attn_flaggems_backend import (
+    _flaggems_flash_attn_forward,
+    _flash_attn_varlen_forward,  # ✅ Implemented varlen forward
+    _flash_attn_qkvpacked_forward,  # ✅ Implemented qkvpacked forward
+    _flash_attn_kvpacked_forward,  # ✅ Implemented kvpacked forward
+    _flash_attn_backward,  # ❌ Not implemented - inference only
+    _flash_attn_varlen_backward,  # ❌ Not implemented - inference only
+    _flash_attn_with_kvcache,  # ❌ Not implemented - requires development
+)
+
+# Commented out other backends
+# elif USE_TRITON_ROCM:
+#     from .flash_attn_triton_amd import interface_fa as flash_attn_gpu
+# else:
+#     try:
+#         import flash_attn_2_cuda as flash_attn_gpu
+#     except ImportError:
+#         print("Warning: CUDA backend not available, using FlagGems backend")
+#         USE_FLAGGEMS = True
+#         from .flash_attn_flaggems_backend import (
+#             _flaggems_flash_attn_forward,
+#             _flash_attn_backward,
+#             _flash_attn_varlen_forward,
+#             _flash_attn_varlen_backward,
+#             _flash_attn_qkvpacked_forward,
+#             _flash_attn_kvpacked_forward,
+#             _flash_attn_with_kvcache,
+#         )
 
 # isort: on
 
@@ -114,37 +116,38 @@ def _flash_attn_forward(
     return_softmax: bool
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     q, k, v = [maybe_contiguous(x) for x in (q, k, v)]
-    if USE_FLAGGEMS:
-        # Convert window_size to tuple format for FlagGems
-        window_size = (window_size_left, window_size_right)
-        # Call FlagGems backend which returns (out, lse, S_dmask, rng_state)
-        out, softmax_lse, S_dmask, rng_state = _flaggems_flash_attn_forward(
-            q, k, v,
-            dropout_p=dropout_p,
-            softmax_scale=softmax_scale,
-            causal=causal,
-            window_size_left=window_size_left,
-            window_size_right=window_size_right,
-            softcap=softcap,
-            alibi_slopes=alibi_slopes,
-            return_softmax=return_softmax,
-        )
-    else:
-        out, softmax_lse, S_dmask, rng_state = flash_attn_gpu.fwd(
-        q,
-        k,
-        v,
-        None,
-        alibi_slopes,
-        dropout_p,
-        softmax_scale,
-        causal,
-        window_size_left,
-        window_size_right,
-        softcap,
-        return_softmax,
-        None,
+    # Direct FlagGems call - removed conditional logic
+    # Convert window_size to tuple format for FlagGems
+    window_size = (window_size_left, window_size_right)
+    # Call FlagGems backend which returns (out, lse, S_dmask, rng_state)
+    out, softmax_lse, S_dmask, rng_state = _flaggems_flash_attn_forward(
+        q, k, v,
+        dropout_p=dropout_p,
+        softmax_scale=softmax_scale,
+        causal=causal,
+        window_size_left=window_size_left,
+        window_size_right=window_size_right,
+        softcap=softcap,
+        alibi_slopes=alibi_slopes,
+        return_softmax=return_softmax,
     )
+    # Commented out original CUDA backend call
+    # else:
+    #     out, softmax_lse, S_dmask, rng_state = flash_attn_gpu.fwd(
+    #     q,
+    #     k,
+    #     v,
+    #     None,
+    #     alibi_slopes,
+    #     dropout_p,
+    #     softmax_scale,
+    #     causal,
+    #     window_size_left,
+    #     window_size_right,
+    #     softcap,
+    #     return_softmax,
+    #     None,
+    # )
     return out, softmax_lse, S_dmask, rng_state
 
 
@@ -224,58 +227,54 @@ def _flash_attn_varlen_forward(
     zero_tensors: bool = False,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     q, k, v = [maybe_contiguous(x) for x in (q, k, v)]
-    if USE_FLAGGEMS:
-        # Convert window_size to tuple format for FlagGems
-        window_size = (window_size_left, window_size_right)
-        result = _flash_attn_varlen_forward(
-            q, k, v,
-            cu_seqlens_q=cu_seqlens_q,
-            cu_seqlens_k=cu_seqlens_k,
-            max_seqlen_q=max_seqlen_q,
-            max_seqlen_k=max_seqlen_k,
-            dropout_p=dropout_p,
-            softmax_scale=softmax_scale,
-            causal=causal,
-            window_size=window_size,
-            alibi_slopes=alibi_slopes,
-            deterministic=False,
-            return_attn_probs=return_softmax,
-        )
-        if return_softmax and isinstance(result, tuple):
-            out, softmax_lse = result
-            S_dmask = torch.empty((0,), dtype=q.dtype, device=q.device)  # Not used in FlagGems
-        else:
-            out = result
-            total_q, num_heads, _ = q.shape
-            softmax_lse = torch.empty((num_heads, total_q), dtype=torch.float32, device=q.device)
-            S_dmask = torch.empty((0,), dtype=q.dtype, device=q.device)
-        rng_state = torch.empty((2,), dtype=torch.int64, device=q.device)
-    else:
-        out, softmax_lse, S_dmask, rng_state = flash_attn_gpu.varlen_fwd(
-        q,
-        k,
-        v,
-        None,
-        cu_seqlens_q,
-        cu_seqlens_k,
-        seqused_k,
-        leftpad_k,
-        block_table,
-        alibi_slopes,
-        max_seqlen_q,
-        max_seqlen_k,
-        dropout_p,
-        softmax_scale,
-        zero_tensors,
-        causal,
-        window_size_left,
-        window_size_right,
-        softcap,
-        return_softmax,
-        None,
+    # Import backend function with different name to avoid recursion
+    from .flash_attn_flaggems_backend import _flash_attn_varlen_forward as flaggems_varlen_forward
+    
+    # Direct FlagGems call - now implemented
+    out, softmax_lse, S_dmask, rng_state = flaggems_varlen_forward(
+        q, k, v,
+        cu_seqlens_q=cu_seqlens_q,
+        cu_seqlens_k=cu_seqlens_k,
+        max_seqlen_q=max_seqlen_q,
+        max_seqlen_k=max_seqlen_k,
+        dropout_p=dropout_p,
+        softmax_scale=softmax_scale,
+        causal=causal,
+        window_size_left=window_size_left,
+        window_size_right=window_size_right,
+        alibi_slopes=alibi_slopes,
+        deterministic=False,
+        return_softmax=return_softmax,
     )
-    # if out.isnan().any() or softmax_lse.isnan().any():
-    #     breakpoint()
+    
+    # Commented out original CUDA backend call
+    # else:
+    #     out, softmax_lse, S_dmask, rng_state = flash_attn_gpu.varlen_fwd(
+    #     q,
+    #     k,
+    #     v,
+    #     None,
+    #     cu_seqlens_q,
+    #     cu_seqlens_k,
+    #     seqused_k,
+    #     leftpad_k,
+    #     block_table,
+    #     alibi_slopes,
+    #     max_seqlen_q,
+    #     max_seqlen_k,
+    #     dropout_p,
+    #     softmax_scale,
+    #     zero_tensors,
+    #     causal,
+    #     window_size_left,
+    #     window_size_right,
+    #     softcap,
+    #     return_softmax,
+    #     None,
+    # )
+    # # if out.isnan().any() or softmax_lse.isnan().any():
+    # #     breakpoint()
+    # return out, softmax_lse, S_dmask, rng_state
     return out, softmax_lse, S_dmask, rng_state
 
 
@@ -317,10 +316,8 @@ def _flash_attn_varlen_forward_fake(
     return out, softmax_lse, p, rng_state
 
 
-if torch.__version__ >= "2.4.0":
-    _wrapped_flash_attn_varlen_forward = torch.ops.flash_attn._flash_attn_varlen_forward
-else:
-    _wrapped_flash_attn_varlen_forward = _flash_attn_varlen_forward
+# Always use FlagGems backend for varlen forward 
+_wrapped_flash_attn_varlen_forward = _flash_attn_varlen_forward
 
 
 @_torch_custom_op_wrapper("flash_attn::_flash_attn_backward", mutates_args=("dq", "dk", "dv"), device_types="cuda")
@@ -346,39 +343,44 @@ def _flash_attn_backward(
 ) -> torch.Tensor:
     # dq, dk, dv are allocated by us so they should already be contiguous
     dout, q, k, v, out = [maybe_contiguous(x) for x in (dout, q, k, v, out)]
-    if USE_FLAGGEMS:
-        # FlagGems backend doesn't support backward yet
-        _flash_attn_backward(dout, q, k, v, out, softmax_lse, dq, dk, dv,
-                           dropout_p, softmax_scale, causal, window_size_left, window_size_right,
-                           softcap, alibi_slopes, deterministic, rng_state)
-        softmax_d = torch.empty((1,), dtype=torch.float32, device=q.device)
-    else:
-        (
-            dq,
-            dk,
-            dv,
-            softmax_d,
-        ) = flash_attn_gpu.bwd(
-        dout,
-        q,
-        k,
-        v,
-        out,
-        softmax_lse,
-        dq,
-        dk,
-        dv,
-        alibi_slopes,
-        dropout_p,
-        softmax_scale,
-        causal,
-        window_size_left,
-        window_size_right,
-        softcap,
-        deterministic,
-        None,
-        rng_state,
-    )
+    # TODO: Implement backward pass - for now raise error
+    raise NotImplementedError("flash_attn_backward not yet implemented in FlagGems backend")
+    
+    # # Direct FlagGems call - commented out until implemented
+    # # FlagGems backend doesn't support backward yet
+    # _flash_attn_backward(dout, q, k, v, out, softmax_lse, dq, dk, dv,
+    #                    dropout_p, softmax_scale, causal, window_size_left, window_size_right,
+    #                    softcap, alibi_slopes, deterministic, rng_state)
+    # softmax_d = torch.empty((1,), dtype=torch.float32, device=q.device)
+    
+    # Commented out original CUDA backend call
+    # else:
+    #     (
+    #         dq,
+    #         dk,
+    #         dv,
+    #         softmax_d,
+    #     ) = flash_attn_gpu.bwd(
+    #     dout,
+    #     q,
+    #     k,
+    #     v,
+    #     out,
+    #     softmax_lse,
+    #     dq,
+    #     dk,
+    #     dv,
+    #     alibi_slopes,
+    #     dropout_p,
+    #     softmax_scale,
+    #     causal,
+    #     window_size_left,
+    #     window_size_right,
+    #     softcap,
+    #     deterministic,
+    #     None,
+    #     rng_state,
+    # )
     return softmax_d
 
 
@@ -450,48 +452,53 @@ def _flash_attn_varlen_backward(
 ) -> torch.Tensor:
     # dq, dk, dv are allocated by us so they should already be contiguous
     dout, q, k, v, out = [maybe_contiguous(x) for x in (dout, q, k, v, out)]
-    if USE_FLAGGEMS:
-        # FlagGems backend doesn't support backward yet
-        _flash_attn_varlen_backward(dout, q, k, v, out, softmax_lse, dq, dk, dv,
-                                  cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k,
-                                  dropout_p, softmax_scale, causal, window_size_left, window_size_right,
-                                  softcap, alibi_slopes, deterministic, rng_state)
-        softmax_d = torch.empty((1,), dtype=torch.float32, device=q.device)
-    else:
-        (
-            dq,
-            dk,
-            dv,
-            softmax_d,
-        ) = flash_attn_gpu.varlen_bwd(
-        dout,
-        q,
-        k,
-        v,
-        out,
-        softmax_lse,
-        dq,
-        dk,
-        dv,
-        cu_seqlens_q,
-        cu_seqlens_k,
-        alibi_slopes,
-        max_seqlen_q,
-        max_seqlen_k,
-        dropout_p,
-        softmax_scale,
-        zero_tensors,
-        causal,
-        window_size_left,
-        window_size_right,
-        softcap,
-        deterministic,
-        None,
-        rng_state,
-    )
-    # if dk.isnan().any() or dk.isnan().any() or dv.isnan().any() or softmax_d.isnan().any():
-    #     breakpoint()
-    return softmax_d
+    # TODO: Implement varlen backward pass - for now raise error
+    raise NotImplementedError("flash_attn_varlen_backward not yet implemented in FlagGems backend")
+    
+    # # Direct FlagGems call - commented out until implemented
+    # # FlagGems backend doesn't support backward yet
+    # _flash_attn_varlen_backward(dout, q, k, v, out, softmax_lse, dq, dk, dv,
+    #                           cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k,
+    #                           dropout_p, softmax_scale, causal, window_size_left, window_size_right,
+    #                           softcap, alibi_slopes, deterministic, rng_state)
+    # softmax_d = torch.empty((1,), dtype=torch.float32, device=q.device)
+    
+    # Commented out original CUDA backend call
+    # else:
+    #     (
+    #         dq,
+    #         dk,
+    #         dv,
+    #         softmax_d,
+    #     ) = flash_attn_gpu.varlen_bwd(
+    #     dout,
+    #     q,
+    #     k,
+    #     v,
+    #     out,
+    #     softmax_lse,
+    #     dq,
+    #     dk,
+    #     dv,
+    #     cu_seqlens_q,
+    #     cu_seqlens_k,
+    #     alibi_slopes,
+    #     max_seqlen_q,
+    #     max_seqlen_k,
+    #     dropout_p,
+    #     softmax_scale,
+    #     zero_tensors,
+    #     causal,
+    #     window_size_left,
+    #     window_size_right,
+    #     softcap,
+    #     deterministic,
+    #     None,
+    #     rng_state,
+    # )
+    # # if dk.isnan().any() or dk.isnan().any() or dv.isnan().any() or softmax_d.isnan().any():
+    # #     breakpoint()
+    # return softmax_d
 
 
 @_torch_register_fake_wrapper("flash_attn::_flash_attn_varlen_backward")
@@ -1685,36 +1692,41 @@ def flash_attn_with_kvcache(
         cache_seqlens = maybe_contiguous(cache_seqlens)
     cache_batch_idx = maybe_contiguous(cache_batch_idx)
     block_table = maybe_contiguous(block_table)
-    if USE_FLAGGEMS:
-        # FlagGems backend doesn't support kvcache yet
-        out, softmax_lse = _flash_attn_with_kvcache(
-            q, k_cache, v_cache, k, v,
-            rotary_cos, rotary_sin,
-            cache_seqlens, cache_batch_idx, cache_leftpad, block_table,
-            softmax_scale, causal, window_size,
-            rotary_interleaved, alibi_slopes,
-        )
-    else:
-        out, softmax_lse = flash_attn_gpu.fwd_kvcache(
-        q,
-        k_cache,
-        v_cache,
-        k,
-        v,
-        cache_seqlens,
-        rotary_cos,
-        rotary_sin,
-        cache_batch_idx,
-        cache_leftpad,
-        block_table,
-        alibi_slopes,
-        None,
-        softmax_scale,
-        causal,
-        window_size[0],
-        window_size[1],
-        softcap,
-        rotary_interleaved,
-        num_splits,
-    )
+    # TODO: Implement kvcache forward - for now raise error
+    raise NotImplementedError("flash_attn_with_kvcache not yet implemented in FlagGems backend")
+    
+    # # Direct FlagGems call - commented out until implemented
+    # # FlagGems backend doesn't support kvcache yet
+    # out, softmax_lse = _flash_attn_with_kvcache(
+    #     q, k_cache, v_cache, k, v,
+    #     rotary_cos, rotary_sin,
+    #     cache_seqlens, cache_batch_idx, cache_leftpad, block_table,
+    #     softmax_scale, causal, window_size,
+    #     rotary_interleaved, alibi_slopes,
+    # )
+    
+    # Commented out original CUDA backend call
+    # else:
+    #     out, softmax_lse = flash_attn_gpu.fwd_kvcache(
+    #     q,
+    #     k_cache,
+    #     v_cache,
+    #     k,
+    #     v,
+    #     cache_seqlens,
+    #     rotary_cos,
+    #     rotary_sin,
+    #     cache_batch_idx,
+    #     cache_leftpad,
+    #     block_table,
+    #     alibi_slopes,
+    #     None,
+    #     softmax_scale,
+    #     causal,
+    #     window_size[0],
+    #     window_size[1],
+    #     softcap,
+    #     rotary_interleaved,
+    #     num_splits,
+    # )
     return (out, softmax_lse) if return_softmax_lse else out

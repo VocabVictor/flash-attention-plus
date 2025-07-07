@@ -1,19 +1,19 @@
-# Code Examples - FlashAttention-Plus
+# 代码示例 - FlashAttention-Plus
 
-## Basic Usage
+## 基础用法
 
-### Simple Attention Computation
+### 简单的注意力计算
 
 ```python
 import torch
 import os
 
-# Enable FlagGems backend
+# 启用 FlagGems 后端
 os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"
 
 from flash_attn import flash_attn_func
 
-# Create sample tensors
+# 创建示例张量
 batch_size, seq_len, n_heads, head_dim = 2, 1024, 16, 64
 device = torch.device('cuda')
 dtype = torch.float16
@@ -22,29 +22,29 @@ q = torch.randn(batch_size, seq_len, n_heads, head_dim, device=device, dtype=dty
 k = torch.randn(batch_size, seq_len, n_heads, head_dim, device=device, dtype=dtype)
 v = torch.randn(batch_size, seq_len, n_heads, head_dim, device=device, dtype=dtype)
 
-# Compute attention
+# 计算注意力
 output = flash_attn_func(q, k, v, causal=True)
-print(f"Output shape: {output.shape}")
+print(f"输出形状：{output.shape}")
 ```
 
-### Using Packed Formats
+### 使用打包格式
 
 ```python
-# QKV packed format
+# QKV 打包格式
 qkv = torch.randn(batch_size, seq_len, 3, n_heads, head_dim, device=device, dtype=dtype)
 from flash_attn import flash_attn_qkvpacked_func
 output = flash_attn_qkvpacked_func(qkv, causal=True)
 
-# KV packed format (useful for cross-attention)
+# KV 打包格式（用于交叉注意力）
 q = torch.randn(batch_size, seq_len, n_heads, head_dim, device=device, dtype=dtype)
 kv = torch.randn(batch_size, seq_len, 2, n_heads, head_dim, device=device, dtype=dtype)
 from flash_attn import flash_attn_kvpacked_func
 output = flash_attn_kvpacked_func(q, kv)
 ```
 
-## Integration with Transformers
+## 与 Transformers 集成
 
-### Custom Attention Layer
+### 自定义注意力层
 
 ```python
 import torch.nn as nn
@@ -69,41 +69,41 @@ class TransformerBlock(nn.Module):
         )
     
     def forward(self, x):
-        # Pre-norm architecture
+        # Pre-norm 架构
         x = x + self.attn(self.ln1(x))
         x = x + self.mlp(self.ln2(x))
         return x
 
-# Usage
+# 使用
 model = TransformerBlock(dim=768, n_heads=12).cuda()
 x = torch.randn(2, 512, 768, device='cuda', dtype=torch.float16)
 output = model(x)
 ```
 
-### Multi-Query Attention (MQA)
+### 多查询注意力（MQA）
 
 ```python
-# MQA: multiple query heads share the same key/value heads
+# MQA：多个查询头共享相同的键/值头
 batch_size, seq_len = 2, 1024
-n_heads_q, n_heads_kv = 32, 8  # 32 query heads, 8 key/value heads
+n_heads_q, n_heads_kv = 32, 8  # 32 个查询头，8 个键/值头
 head_dim = 128
 
 q = torch.randn(batch_size, seq_len, n_heads_q, head_dim, device=device, dtype=dtype)
 k = torch.randn(batch_size, seq_len, n_heads_kv, head_dim, device=device, dtype=dtype)
 v = torch.randn(batch_size, seq_len, n_heads_kv, head_dim, device=device, dtype=dtype)
 
-# FlashAttention automatically handles MQA
+# FlashAttention 自动处理 MQA
 output = flash_attn_func(q, k, v, causal=True)
-print(f"MQA output shape: {output.shape}")  # (2, 1024, 32, 128)
+print(f"MQA 输出形状：{output.shape}")  # (2, 1024, 32, 128)
 ```
 
-## Advanced Features
+## 高级功能
 
-### Sliding Window Attention
+### 滑动窗口注意力
 
 ```python
-# Local attention with window size
-window_size = (256, 0)  # Look back 256 tokens, no look-ahead
+# 具有窗口大小的局部注意力
+window_size = (256, 0)  # 回看 256 个标记，不向前看
 output = flash_attn_func(
     q, k, v,
     causal=True,
@@ -111,10 +111,10 @@ output = flash_attn_func(
 )
 ```
 
-### Custom Softmax Scaling
+### 自定义 Softmax 缩放
 
 ```python
-# Override default scaling factor (1/sqrt(head_dim))
+# 覆盖默认缩放因子 (1/sqrt(head_dim))
 custom_scale = 1.0 / (head_dim ** 0.5) * 1.5
 output = flash_attn_func(
     q, k, v,
@@ -123,10 +123,10 @@ output = flash_attn_func(
 )
 ```
 
-### Dropout During Training
+### 训练期间的 Dropout
 
 ```python
-# Apply dropout to attention weights
+# 对注意力权重应用 dropout
 model.train()
 output = flash_attn_func(
     q, k, v,
@@ -134,13 +134,13 @@ output = flash_attn_func(
     causal=True
 )
 
-# Disable dropout for inference
+# 推理时禁用 dropout
 model.eval()
 with torch.no_grad():
     output = flash_attn_func(q, k, v, dropout_p=0.0, causal=True)
 ```
 
-## Performance Benchmarking
+## 性能基准测试
 
 ```python
 import time
@@ -156,7 +156,7 @@ def benchmark_attention(seq_lengths, n_heads=16, head_dim=64, num_iters=100):
         k = torch.randn(1, seq_len, n_heads, head_dim, device=device, dtype=dtype)
         v = torch.randn(1, seq_len, n_heads, head_dim, device=device, dtype=dtype)
         
-        # Warmup
+        # 预热
         for _ in range(10):
             _ = flash_attn_func(q, k, v, causal=True)
         
@@ -169,16 +169,16 @@ def benchmark_attention(seq_lengths, n_heads=16, head_dim=64, num_iters=100):
         torch.cuda.synchronize()
         end = time.time()
         
-        avg_time = (end - start) / num_iters * 1000  # ms
-        print(f"Seq length {seq_len}: {avg_time:.2f} ms")
+        avg_time = (end - start) / num_iters * 1000  # 毫秒
+        print(f"序列长度 {seq_len}：{avg_time:.2f} 毫秒")
 
-# Run benchmark
+# 运行基准测试
 benchmark_attention([512, 1024, 2048, 4096, 8192])
 ```
 
-## Migration from Standard Attention
+## 从标准注意力迁移
 
-### Before (Standard PyTorch)
+### 之前（标准 PyTorch）
 
 ```python
 def standard_attention(q, k, v, mask=None, dropout_p=0.0):
@@ -196,15 +196,15 @@ def standard_attention(q, k, v, mask=None, dropout_p=0.0):
     return output
 ```
 
-### After (FlashAttention-Plus)
+### 之后（FlashAttention-Plus）
 
 ```python
 os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"
 from flash_attn import flash_attn_func
 
 def flash_attention(q, k, v, is_causal=True, dropout_p=0.0):
-    # Note: q, k, v should be (batch, seq_len, n_heads, head_dim)
-    # If your tensors are (batch, n_heads, seq_len, head_dim), transpose:
+    # 注意：q, k, v 应该是 (batch, seq_len, n_heads, head_dim)
+    # 如果您的张量是 (batch, n_heads, seq_len, head_dim)，请转置：
     # q = q.transpose(1, 2)
     # k = k.transpose(1, 2)
     # v = v.transpose(1, 2)
@@ -213,18 +213,18 @@ def flash_attention(q, k, v, is_causal=True, dropout_p=0.0):
     return output
 ```
 
-## Error Handling Example
+## 错误处理示例
 
 ```python
 def safe_flash_attention(q, k, v, **kwargs):
-    """Wrapper with fallback to standard attention"""
+    """带有回退到标准注意力的包装器"""
     try:
-        # Try FlashAttention first
+        # 首先尝试 FlashAttention
         return flash_attn_func(q, k, v, **kwargs)
     except Exception as e:
-        print(f"FlashAttention failed: {e}, falling back to standard attention")
+        print(f"FlashAttention 失败：{e}，回退到标准注意力")
         
-        # Fallback implementation
+        # 回退实现
         batch, seq_len, n_heads, head_dim = q.shape
         q = q.transpose(1, 2)  # (batch, n_heads, seq_len, head_dim)
         k = k.transpose(1, 2)
@@ -238,5 +238,5 @@ def safe_flash_attention(q, k, v, **kwargs):
         
         attn = torch.softmax(scores, dim=-1)
         output = torch.matmul(attn, v)
-        return output.transpose(1, 2)  # Back to (batch, seq_len, n_heads, head_dim)
+        return output.transpose(1, 2)  # 返回到 (batch, seq_len, n_heads, head_dim)
 ```

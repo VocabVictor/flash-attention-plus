@@ -1,36 +1,36 @@
-# Usage Guide
+# 使用指南
 
-This guide covers how to use FlashAttention-Plus in your projects.
+本指南介绍如何在项目中使用 FlashAttention-Plus。
 
-## Basic Usage
+## 基础用法
 
-### Enabling FlagGems Backend
+### 启用 FlagGems 后端
 
-FlashAttention-Plus uses an environment variable to switch between backends:
+FlashAttention-Plus 使用环境变量来切换后端：
 
 ```python
 import os
 
-# Enable FlagGems backend (default)
+# 启用 FlagGems 后端（默认）
 os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"
 
-# Or disable to use original CUDA backend (if available)
+# 或禁用以使用原始 CUDA 后端（如果可用）
 os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "FALSE"
 ```
 
-### Simple Example
+### 简单示例
 
 ```python
 import torch
 from flash_attn import flash_attn_func
 
-# Create input tensors
+# 创建输入张量
 batch_size = 2
 seq_length = 1024
 num_heads = 16
 head_dim = 64
 
-# Note: Inputs must be fp16 or bf16
+# 注意：输入必须是 fp16 或 bf16
 q = torch.randn(batch_size, seq_length, num_heads, head_dim, 
                 device='cuda', dtype=torch.float16)
 k = torch.randn(batch_size, seq_length, num_heads, head_dim, 
@@ -38,60 +38,60 @@ k = torch.randn(batch_size, seq_length, num_heads, head_dim,
 v = torch.randn(batch_size, seq_length, num_heads, head_dim, 
                 device='cuda', dtype=torch.float16)
 
-# Apply flash attention
+# 应用闪存注意力
 output = flash_attn_func(q, k, v, causal=True)
 ```
 
-## Advanced Usage
+## 高级用法
 
-### With Dropout
+### 使用 Dropout
 
 ```python
-# Apply attention with dropout
+# 应用带有 dropout 的注意力
 output = flash_attn_func(q, k, v, dropout_p=0.1, causal=True)
 ```
 
-!!! warning "Dropout Support"
-    Dropout interface is available but may not be fully functional in the current version.
+!!! warning "Dropout 支持"
+    Dropout 接口可用，但在当前版本中可能无法完全正常工作。
 
-### Custom Softmax Scale
+### 自定义 Softmax 缩放
 
 ```python
-# Custom scaling factor
+# 自定义缩放因子
 scale = 1.0 / math.sqrt(head_dim)
 output = flash_attn_func(q, k, v, softmax_scale=scale, causal=True)
 ```
 
-### Non-Causal Attention
+### 非因果注意力
 
 ```python
-# For bidirectional attention (e.g., BERT)
+# 用于双向注意力（例如 BERT）
 output = flash_attn_func(q, k, v, causal=False)
 ```
 
-## Input Requirements
+## 输入要求
 
-### Data Types
+### 数据类型
 
-FlashAttention-Plus requires inputs to be in half-precision format:
+FlashAttention-Plus 要求输入为半精度格式：
 
 - `torch.float16` (fp16)
 - `torch.bfloat16` (bf16)
 
 ```python
-# Convert to fp16 if needed
+# 如需要，转换为 fp16
 q = q.to(torch.float16)
 k = k.to(torch.float16)
 v = v.to(torch.float16)
 ```
 
-### Tensor Shape
+### 张量形状
 
-Input tensors should have the shape: `[batch_size, seq_length, num_heads, head_dim]`
+输入张量应具有形状：`[batch_size, seq_length, num_heads, head_dim]`
 
-### Device
+### 设备
 
-All tensors must be on CUDA device:
+所有张量必须在 CUDA 设备上：
 
 ```python
 q = q.to('cuda')
@@ -99,9 +99,9 @@ k = k.to('cuda')
 v = v.to('cuda')
 ```
 
-## Integration with Transformers
+## 与 Transformers 集成
 
-### Custom Attention Module
+### 自定义注意力模块
 
 ```python
 import torch.nn as nn
@@ -121,64 +121,64 @@ class FlashSelfAttention(nn.Module):
     def forward(self, x, causal=False):
         batch_size, seq_len, _ = x.shape
         
-        # Compute Q, K, V
+        # 计算 Q, K, V
         qkv = self.qkv(x)
         qkv = qkv.reshape(batch_size, seq_len, 3, self.num_heads, self.head_dim)
         q, k, v = qkv.unbind(dim=2)
         
-        # Apply flash attention
+        # 应用闪存注意力
         output = flash_attn_func(q, k, v, dropout_p=self.dropout, causal=causal)
         
-        # Reshape and project output
+        # 重塑并投影输出
         output = output.reshape(batch_size, seq_len, self.embed_dim)
         output = self.out_proj(output)
         
         return output
 ```
 
-### Using with Existing Models
+### 与现有模型一起使用
 
 ```python
-# Replace standard attention with flash attention
+# 用闪存注意力替换标准注意力
 model = YourTransformerModel()
 
-# Enable FlagGems backend
+# 启用 FlagGems 后端
 os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"
 
-# The model will now use FlashAttention-Plus
+# 模型现在将使用 FlashAttention-Plus
 output = model(input_ids)
 ```
 
-## Performance Tips
+## 性能提示
 
-1. **First Run**: The first run may be slower due to Triton kernel compilation. Subsequent runs will use cached kernels.
+1. **首次运行**：由于 Triton 内核编译，首次运行可能较慢。后续运行将使用缓存的内核。
 
-2. **Batch Processing**: Process multiple sequences together for better GPU utilization:
+2. **批处理**：一起处理多个序列以获得更好的 GPU 利用率：
    ```python
-   # Good: Batch multiple sequences
+   # 好：批量处理多个序列
    batch_output = flash_attn_func(batch_q, batch_k, batch_v)
    
-   # Less efficient: Process one at a time
+   # 效率较低：逐个处理
    for i in range(batch_size):
        output_i = flash_attn_func(q[i:i+1], k[i:i+1], v[i:i+1])
    ```
 
-3. **Memory Efficiency**: FlashAttention is designed to be memory-efficient. You can process longer sequences than standard attention.
+3. **内存效率**：FlashAttention 设计为内存高效。您可以处理比标准注意力更长的序列。
 
-## Debugging
+## 调试
 
-Enable debug mode to get more information:
+启用调试模式以获取更多信息：
 
 ```python
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-# This will show detailed information about the attention computation
+# 这将显示有关注意力计算的详细信息
 output = flash_attn_func(q, k, v, causal=True)
 ```
 
-## Next Steps
+## 下一步
 
-- See [Examples](examples.md) for complete working examples
-- Check the [API Reference](api.md) for detailed parameter documentation
-- Read the [Technical Details](technical.md) to understand how it works
+- 查看[示例](examples.md)获取完整的工作示例
+- 查看 [API 参考](api.md)了解详细的参数文档
+- 阅读[技术细节](technical.md)了解其工作原理

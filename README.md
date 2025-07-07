@@ -1,47 +1,47 @@
 # FlashAttention-Plus
 
-**A hardware-agnostic implementation of FlashAttention using FlagGems/Triton backend**
+**基于 FlagGems/Triton 后端的硬件无关 FlashAttention 实现**
 
 [![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://vocabvictor.github.io/flash-attention-plus/)
 
-[📖 Documentation](https://vocabvictor.github.io/flash-attention-plus/) | [中文文档](https://vocabvictor.github.io/flash-attention-plus/zh/)
+[📖 English Documentation](README_EN.md) | [中文文档](README_CN.md)
 
-## Overview
+## 项目概述
 
-FlashAttention-Plus is a drop-in replacement for the original [FlashAttention](https://github.com/Dao-AILab/flash-attention) that replaces NVIDIA CUDA kernels with [FlagGems](https://github.com/FlagOpen/FlagGems)' Triton implementation. This enables FlashAttention to run on a broader range of hardware while maintaining API compatibility.
+FlashAttention-Plus 是原始 [FlashAttention](https://github.com/Dao-AILab/flash-attention) 的直接替代品，使用 [FlagGems](https://github.com/FlagOpen/FlagGems) 的 Triton 实现替代 NVIDIA CUDA 内核。这使得 FlashAttention 能够在更广泛的硬件上运行，同时保持 API 兼容性。
 
-**Key Features:**
-- 🚀 **Hardware-agnostic**: Uses Triton instead of CUDA-specific code
-- 🔄 **API Compatible**: Drop-in replacement for original FlashAttention
-- ⚡ **High Performance**: Leverages optimized Triton kernels from FlagGems
-- 🎯 **Easy Integration**: Minimal code changes required
+**主要特性：**
+- 🚀 **硬件无关**：使用 Triton 而非 CUDA 专用代码
+- 🔄 **API 兼容**：原始 FlashAttention 的直接替代品
+- ⚡ **高性能**：利用 FlagGems 优化的 Triton 内核
+- 🎯 **易于集成**：只需最少的代码更改
 
-## Installation
+## 安装说明
 
-### Prerequisites
+### 环境要求
 
 ```bash
-# PyTorch with CUDA support
+# 支持 CUDA 的 PyTorch
 pip install torch>=2.0.0
 
-# Triton (required for FlagGems)
+# Triton (FlagGems 所需)
 pip install triton>=3.0.0
 
-# Other dependencies
+# 其他依赖
 pip install einops
 ```
 
-### Install FlagGems
+### 安装 FlagGems
 
 ```bash
-cd ~/.code/library/FlagGems  # or your preferred location
+cd ~/.code/library/FlagGems  # 或你喜欢的位置
 git clone https://github.com/FlagOpen/FlagGems.git
 cd FlagGems
 pip install -e .
 ```
 
-### Install FlashAttention-Plus
+### 安装 FlashAttention-Plus
 
 ```bash
 git clone https://github.com/VocabVictor/flash-attention-plus.git
@@ -49,90 +49,94 @@ cd flash-attention-plus
 pip install -e .
 ```
 
-## Usage
+## 使用方法
 
-### Quick Start
+### 快速开始
 
-Simply set an environment variable to use the FlagGems backend:
+当前版本直接使用 FlagGems 后端，无需设置环境变量：
 
 ```python
-import os
-os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"
-
-# Then use flash_attn as usual
+import torch
 from flash_attn import flash_attn_func
 
-# Create tensors (must be fp16 or bf16)
+# 创建张量 (必须是 fp16 或 bf16)
 q = torch.randn(2, 1024, 16, 64, device='cuda', dtype=torch.float16)
 k = torch.randn(2, 1024, 16, 64, device='cuda', dtype=torch.float16)
 v = torch.randn(2, 1024, 16, 64, device='cuda', dtype=torch.float16)
 
-# Run flash attention
+# 运行 flash attention
 output = flash_attn_func(q, k, v, causal=True)
 ```
 
-### Switching Between Backends
+### 支持的功能
 
 ```python
-# Use FlagGems backend (hardware-agnostic)
-os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "TRUE"
+# 标准注意力
+output = flash_attn_func(q, k, v, causal=True)
 
-# Use original CUDA backend (if available)
-os.environ["FLASH_ATTENTION_USE_FLAGGEMS"] = "FALSE"
+# QKV 打包格式
+qkv = torch.randn(2, 1024, 3, 16, 64, device='cuda', dtype=torch.float16)
+output = flash_attn_qkvpacked_func(qkv, causal=True)
+
+# 变长序列
+output = flash_attn_varlen_func(q_varlen, k_varlen, v_varlen, cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k)
 ```
 
-## Key Differences from Original FlashAttention
+## 与原始 FlashAttention 的主要差异
 
-### What's Changed
-- **Backend**: CUDA kernels → FlagGems/Triton kernels
-- **Hardware Support**: NVIDIA-only → Hardware-agnostic
-- **Installation**: No CUDA compilation required
+### 已更改的部分
+- **后端**：CUDA 内核 → FlagGems/Triton 内核
+- **硬件支持**：仅支持 NVIDIA → 硬件无关
+- **安装**：无需 CUDA 编译
 
-### What's Preserved
-- ✅ API compatibility
-- ✅ Core functionality
-- ✅ Model support (BERT, GPT, LLaMA, etc.)
-- ✅ Performance characteristics
+### 保留的部分
+- ✅ API 兼容性
+- ✅ 核心功能
+- ✅ 模型支持 (BERT, GPT, LLaMA 等)
+- ✅ 性能特性
 
-### Current Limitations
-- ❌ Backward pass not yet implemented
-- ❌ KV cache support pending
-- ❌ Variable length sequences not supported
-- ⚠️ Dropout interface exists but may not be fully functional
+### 当前状态
+- ✅ **前向传播**：完全实现
+  - 标准注意力 (flash_attn_func)
+  - QKV 打包格式 (flash_attn_qkvpacked_func)
+  - KV 打包格式 (flash_attn_kvpacked_func)
+  - 变长序列 (flash_attn_varlen_func)
+- ❌ **反向传播**：未实现 (仅推理)
+- ❌ **KV 缓存**：待开发
 
-## Examples
+## 示例
 
-See the [examples](examples/) directory for more usage examples:
-- [basic_usage.py](examples/basic_usage.py) - Basic FlashAttention usage
-- [migration_guide.py](examples/migration_guide.py) - Migration from original FlashAttention
+查看更多使用示例请参考文档：
+- `README_CN.md` - 详细的使用指南
+- `IMPLEMENTATION_PLAN_CN.md` - 实现计划
+- `TASK_CHECKLIST_CN.md` - 开发任务清单
 
-## Performance
+## 性能
 
-Performance varies by hardware and configuration. First run may be slower due to Triton kernel compilation, but subsequent runs use cached kernels.
+性能因硬件和配置而异。首次运行可能较慢（由于 Triton 内核编译），但后续运行使用缓存内核。
 
-## Migration Guide
+## 技术细节
 
-For detailed migration instructions from the original FlashAttention, see [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md).
+更多关于 FlagGems 集成的信息，请参阅：
+- `PROJECT_STATUS_CN.md` - 项目状态报告
+- `IMPLEMENTATION_PLAN_CN.md` - 详细技术计划
 
-## Technical Details
+## 许可证
 
-For more information about the FlagGems integration, see [README_FLAGGEMS.md](README_FLAGGEMS.md).
+本项目采用与原始 FlashAttention 相同的 BSD 3-Clause 许可证。详见 [LICENSE](LICENSE)。
 
-## License
+## 致谢
 
-This project maintains the same BSD 3-Clause License as the original FlashAttention. See [LICENSE](LICENSE) for details.
+- 原始 FlashAttention 由 [Tri Dao](https://tridao.me/) 和团队开发
+- [FlagGems](https://github.com/FlagOpen/FlagGems) 团队提供 Triton 内核
+- [OpenAI Triton](https://github.com/openai/triton) GPU 编程语言
 
-## Acknowledgments
+## 发展路线图
 
-- Original FlashAttention by [Tri Dao](https://tridao.me/) and team
-- [FlagGems](https://github.com/FlagOpen/FlagGems) team for the Triton kernels
-- [OpenAI Triton](https://github.com/openai/triton) for the GPU programming language
+- [ ] 实现反向传播支持
+- [ ] 添加 KV 缓存功能
+- [ ] 性能优化
+- [ ] 全面的基准测试
+- [ ] 支持更多硬件后端
 
-## Roadmap
-
-- [ ] Implement backward pass support
-- [ ] Add KV cache functionality
-- [ ] Support variable length sequences
-- [ ] Performance optimizations
-- [ ] Comprehensive benchmarks
-- [ ] Support for more hardware backends
+详细的开发计划请参阅 `IMPLEMENTATION_PLAN_CN.md`。
